@@ -1,3 +1,4 @@
+
 export interface NewsArticle {
   title: string;
   link: string;
@@ -6,6 +7,31 @@ export interface NewsArticle {
   guid: string;
   description: string;
 }
+
+export interface VideoItem {
+  id: string;
+  title: string;
+  description: string;
+  thumbnailUrl: string;
+  channelTitle: string;
+  publishTime: string;
+  link: string;
+}
+
+export interface CommentItem {
+  id: string;
+  authorDisplayName: string;
+  authorProfileImageUrl: string;
+  textDisplay: string;
+  textOriginal: string;
+  likeCount: number;
+  publishedAt: string;
+  replyCount: number;
+  videoLink: string;
+}
+
+export type DataSource = 'news' | 'youtube';
+export type YoutubeMode = 'search' | 'comments';
 
 export interface SearchParams {
   query: string;
