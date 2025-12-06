@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { LoginForm } from './components/LoginForm';
 import { Layout } from './components/Layout';
@@ -7,7 +6,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { User, LoginState, SearchParams, COUNTRIES, LANGUAGES, NewsArticle, VideoItem, AppSettings, DataSource, YoutubeMode, CommentItem, SearchHistoryItem } from './types';
 import { fetchNews, exportToCSV } from './services/newsService';
 import { fetchVideos, fetchVideoComments, exportVideosToCSV, exportCommentsToCSV } from './services/youtubeService';
-import { Search, Download, RefreshCw, Calendar, Globe, AlertCircle, ExternalLink, Check, Loader2, MapPin, Youtube, Newspaper, Key, MessageSquare, Video, ThumbsUp, MessageCircle, History, Clock, ArrowDownCircle } from 'lucide-react';
+import { Search, Download, RefreshCw, Calendar, Globe, AlertCircle, ExternalLink, Check, Loader2, MapPin, Youtube, Newspaper, Key, MessageSquare, Video, ThumbsUp, MessageCircle, History, Clock, ArrowDownCircle, Filter } from 'lucide-react';
 
 export default function App() {
   const [authStatus, setAuthStatus] = useState<LoginState>(LoginState.LOGGED_OUT);
@@ -97,8 +96,6 @@ export default function App() {
     setCountry(item.country);
     if (item.targetVideoUrl) setTargetVideoUrl(item.targetVideoUrl);
     
-    // Auto trigger search (optional, but convenient)
-    // We won't auto-trigger to let user review params, but we scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -231,7 +228,6 @@ export default function App() {
       }
     } catch (err: any) {
       console.error("Failed to load more items", err);
-      // Optional: show toast error
     } finally {
       setLoadingMore(false);
     }
@@ -273,84 +269,92 @@ export default function App() {
         onSave={setSettings}
       />
 
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">SPF Intelligence Dashboard</h1>
-        <p className="text-gray-500 mt-2">Real-time multi-source monitoring platform</p>
+      <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+           <div className="flex items-center gap-2 mb-1">
+             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">System Online</span>
+           </div>
+           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Intelligence Dashboard</h1>
+           <p className="text-gray-500 mt-1 text-sm">Real-time multi-source monitoring & extraction platform</p>
+        </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Controls */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-800">
-              <Search className="w-5 h-5 text-indigo-600" />
-              Intelligence Configuration
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left Column: Controls (Width 4/12) */}
+        <div className="lg:col-span-4 space-y-6">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200/75">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-5 flex items-center gap-2 pb-3 border-b border-gray-100">
+              <Filter className="w-4 h-4" />
+              Configuration Parameters
             </h2>
             
-            <form onSubmit={handleSearch} className="space-y-5">
+            <form onSubmit={handleSearch} className="space-y-6">
               
               {/* Data Source Toggle */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Data Source</label>
-                <div className="flex bg-gray-100 p-1 rounded-lg">
+                <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase">Data Source</label>
+                <div className="flex bg-gray-100/80 p-1.5 rounded-lg border border-gray-200">
                     <button
                         type="button"
                         onClick={() => setDataSource('news')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${dataSource === 'news' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-md transition-all duration-200 ${dataSource === 'news' ? 'bg-white text-indigo-700 shadow-sm border border-gray-100' : 'text-gray-500 hover:text-gray-700'}`}
                     >
-                        <Newspaper className="w-4 h-4" /> News
+                        <Newspaper className="w-4 h-4" /> Global News
                     </button>
                     <button
                         type="button"
                         onClick={() => setDataSource('youtube')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${dataSource === 'youtube' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-md transition-all duration-200 ${dataSource === 'youtube' ? 'bg-white text-red-600 shadow-sm border border-gray-100' : 'text-gray-500 hover:text-gray-700'}`}
                     >
-                        <Youtube className="w-4 h-4" /> YouTube
+                        <Youtube className="w-4 h-4" /> YouTube Intel
                     </button>
                 </div>
               </div>
 
               {/* YouTube Specific Modes */}
               {dataSource === 'youtube' && (
-                <div className="animate-in fade-in slide-in-from-top-1 bg-red-50 p-3 rounded-lg border border-red-100 space-y-4">
+                <div className="animate-in fade-in slide-in-from-top-1 bg-red-50/50 p-4 rounded-xl border border-red-100 space-y-4">
                   {/* API Key */}
                   <div>
-                    <label className="block text-xs font-semibold text-red-800 mb-1 flex items-center gap-1 uppercase tracking-wide">
-                        <Key className="w-3 h-3" /> API Key
+                    <label className="block text-xs font-semibold text-red-900 mb-1.5 flex items-center gap-1.5 uppercase tracking-wide">
+                        <Key className="w-3.5 h-3.5" /> API Key
                     </label>
                     <input
                       type="text"
                       value={youtubeApiKey}
                       onChange={(e) => setYoutubeApiKey(e.target.value)}
-                      className="w-full rounded bg-white border-red-200 border p-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
-                      placeholder="Required"
+                      className="w-full rounded-lg bg-white border-red-200 border p-2.5 text-sm focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all placeholder:text-red-200"
+                      placeholder="Enter YouTube Data API Key"
                       required
                     />
                   </div>
 
                   {/* Operation Mode */}
                   <div>
-                    <label className="block text-xs font-semibold text-red-800 mb-2 uppercase tracking-wide">Operation Mode</label>
-                    <div className="flex gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
+                    <label className="block text-xs font-semibold text-red-900 mb-2.5 uppercase tracking-wide">Mode Selection</label>
+                    <div className="grid grid-cols-2 gap-3">
+                        <label className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all ${youtubeMode === 'search' ? 'bg-white border-red-300 text-red-700 shadow-sm' : 'border-transparent text-gray-500 hover:bg-white/50'}`}>
                             <input 
                                 type="radio" 
                                 name="ytMode" 
                                 checked={youtubeMode === 'search'} 
                                 onChange={() => setYoutubeMode('search')}
-                                className="text-red-600 focus:ring-red-500"
+                                className="hidden"
                             />
-                            <span className="text-sm text-gray-700 flex items-center gap-1"><Video className="w-3 h-3"/> Find Videos</span>
+                            <Video className="w-4 h-4"/> 
+                            <span className="text-xs font-medium">Video Search</span>
                         </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
+                        <label className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all ${youtubeMode === 'comments' ? 'bg-white border-red-300 text-red-700 shadow-sm' : 'border-transparent text-gray-500 hover:bg-white/50'}`}>
                             <input 
                                 type="radio" 
                                 name="ytMode" 
                                 checked={youtubeMode === 'comments'} 
                                 onChange={() => setYoutubeMode('comments')}
-                                className="text-red-600 focus:ring-red-500"
+                                className="hidden"
                             />
-                            <span className="text-sm text-gray-700 flex items-center gap-1"><MessageSquare className="w-3 h-3"/> Extract Comments</span>
+                            <MessageSquare className="w-4 h-4"/> 
+                            <span className="text-xs font-medium">Comments</span>
                         </label>
                     </div>
                   </div>
@@ -361,82 +365,91 @@ export default function App() {
               {dataSource === 'youtube' && youtubeMode === 'comments' ? (
                   // Comment Scraping Inputs
                    <div className="animate-in fade-in slide-in-from-top-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Target Video URL</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Target Video URL</label>
                     <input
                         type="text"
                         value={targetVideoUrl}
                         onChange={(e) => setTargetVideoUrl(e.target.value)}
-                        className="w-full rounded-lg border-gray-300 border p-2 focus:ring-2 focus:ring-red-500 outline-none"
+                        className="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all"
                         placeholder="https://www.youtube.com/watch?v=..."
                     />
-                    <p className="text-xs text-gray-500 mt-1">Paste the full link to scrape user comments.</p>
+                    <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      Paste full link to extract user sentiment.
+                    </p>
                    </div>
               ) : (
                   // Standard Search Inputs (News or YT Video Search)
                   <>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Keywords</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Search Keywords</label>
                         <input
                           type="text"
                           value={query}
                           onChange={(e) => setQuery(e.target.value)}
-                          className={`w-full rounded-lg border-gray-300 border p-2 focus:ring-2 outline-none transition-shadow ${dataSource === 'youtube' ? 'focus:ring-red-500' : 'focus:ring-indigo-500'}`}
+                          className={`w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 outline-none transition-all ${dataSource === 'youtube' ? 'focus:ring-red-500/20 focus:border-red-500' : 'focus:ring-indigo-500/20 focus:border-indigo-500'}`}
                           placeholder={dataSource === 'youtube' ? "e.g. Dhaka protest" : "e.g. economy AND (inflation OR tax)"}
                         />
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
-                            <Calendar className="w-3 h-3 text-gray-500" /> Start Date
+                          <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide flex items-center gap-1">
+                            <Calendar className="w-3 h-3" /> From
                           </label>
                           <input
                             type="date"
                             value={startDate}
                             onChange={(e) => setStartDate(e.target.value)}
-                            className="w-full rounded-lg border-gray-300 border p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                            className="w-full rounded-lg border-gray-300 border p-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
-                             <Calendar className="w-3 h-3 text-gray-500" /> End Date
+                          <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide flex items-center gap-1">
+                             <Calendar className="w-3 h-3" /> To
                           </label>
                           <input
                             type="date"
                             value={endDate}
                             onChange={(e) => setEndDate(e.target.value)}
-                            className="w-full rounded-lg border-gray-300 border p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                            className="w-full rounded-lg border-gray-300 border p-2 text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
                           />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
-                            <Globe className="w-3 h-3 text-gray-500" /> Language
+                          <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide flex items-center gap-1">
+                            <Globe className="w-3 h-3" /> Language
                           </label>
                           <div className="relative">
                             <select
                                 value={language}
                                 onChange={(e) => setLanguage(e.target.value)}
-                                className="w-full rounded-lg border-gray-300 border p-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none appearance-none"
+                                className="w-full rounded-lg border-gray-300 border p-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none appearance-none"
                             >
                                 {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
                             </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                                <ArrowDownCircle className="w-4 h-4" />
+                            </div>
                           </div>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
-                            <MapPin className="w-3 h-3 text-gray-500" /> Country
+                          <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide flex items-center gap-1">
+                            <MapPin className="w-3 h-3" /> Region
                           </label>
                           <div className="relative">
                             <select
                                 value={country}
                                 onChange={(e) => setCountry(e.target.value)}
-                                className="w-full rounded-lg border-gray-300 border p-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 outline-none appearance-none"
+                                className="w-full rounded-lg border-gray-300 border p-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none appearance-none"
                             >
                                 {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
                             </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                                <ArrowDownCircle className="w-4 h-4" />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -446,40 +459,44 @@ export default function App() {
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full flex justify-center items-center gap-2 py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white transition-all disabled:opacity-70 disabled:cursor-wait ${dataSource === 'youtube' ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' : 'bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500'}`}
+                className={`w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-lg text-sm font-semibold text-white transition-all transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-wait disabled:hover:translate-y-0 ${dataSource === 'youtube' ? 'bg-gradient-to-r from-red-600 to-red-700 hover:shadow-red-200' : 'bg-gradient-to-r from-indigo-600 to-indigo-700 hover:shadow-indigo-200'}`}
               >
                 {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                {loading ? 'Processing...' : 'Run Analysis'}
+                {loading ? 'Executing Extraction...' : 'Initialize Analysis'}
               </button>
             </form>
           </div>
 
           {/* Search History Panel */}
           {searchHistory.length > 0 && (
-             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-               <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                 <History className="w-4 h-4 text-gray-400" /> Recent Operations
+             <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200/75">
+               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2">
+                 <History className="w-4 h-4" /> Recent Operations
                </h3>
                <div className="space-y-2">
                  {searchHistory.map(item => (
                    <button 
                     key={item.id}
                     onClick={() => restoreHistory(item)}
-                    className="w-full text-left p-2 rounded hover:bg-gray-50 text-xs border border-transparent hover:border-gray-100 transition-all group"
+                    className="w-full text-left p-2.5 rounded-lg hover:bg-gray-50 text-xs border border-transparent hover:border-gray-200 transition-all group relative overflow-hidden"
                    >
-                     <div className="flex items-center gap-2 mb-1">
-                        {item.dataSource === 'news' ? (
-                          <Newspaper className="w-3 h-3 text-indigo-500" />
-                        ) : (
-                          <Youtube className="w-3 h-3 text-red-500" />
-                        )}
-                        <span className="font-medium text-gray-700 truncate flex-1">
+                     <div className="flex items-center gap-2.5 mb-1.5 relative z-10">
+                        <div className={`w-6 h-6 rounded flex items-center justify-center flex-shrink-0 ${item.dataSource === 'news' ? 'bg-indigo-50' : 'bg-red-50'}`}>
+                          {item.dataSource === 'news' ? (
+                            <Newspaper className="w-3.5 h-3.5 text-indigo-600" />
+                          ) : (
+                            <Youtube className="w-3.5 h-3.5 text-red-600" />
+                          )}
+                        </div>
+                        <span className="font-semibold text-gray-700 truncate flex-1">
                           {item.youtubeMode === 'comments' ? 'Comments Extract' : item.query}
                         </span>
-                        <Clock className="w-3 h-3 text-gray-300 group-hover:text-gray-400" />
                      </div>
-                     <div className="text-gray-400 pl-5 truncate">
-                        {new Date(item.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • {getCountryName(item.country)}
+                     <div className="flex items-center gap-2 text-gray-400 pl-[2.125rem] relative z-10">
+                        <Clock className="w-3 h-3" />
+                        <span>{new Date(item.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        <span>•</span>
+                        <span>{getCountryName(item.country)}</span>
                      </div>
                    </button>
                  ))}
@@ -490,69 +507,70 @@ export default function App() {
           {dataSource === 'news' && <OperatorGuide />}
         </div>
 
-        {/* Right Column: Results */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* Right Column: Results (Width 8/12) */}
+        <div className="lg:col-span-8 space-y-6">
           {error && (
-            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg flex items-start gap-3 shadow-sm animate-in fade-in slide-in-from-top-2">
-              <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
+            <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-xl flex items-start gap-4 shadow-sm animate-in fade-in slide-in-from-top-2">
+              <div className="p-2 bg-red-100 rounded-full">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+              </div>
               <div>
-                <h3 className="font-medium text-red-800">System Alert</h3>
-                <p className="text-sm text-red-700 mt-1">{error}</p>
+                <h3 className="font-bold text-red-900">Extraction Failed</h3>
+                <p className="text-sm text-red-700 mt-1 leading-relaxed">{error}</p>
               </div>
             </div>
           )}
 
           {!executedSearch && !loading && !error && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center h-full flex flex-col items-center justify-center min-h-[400px]">
-              <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${dataSource === 'youtube' ? 'bg-red-50' : 'bg-indigo-50'}`}>
-                {dataSource === 'youtube' ? <Youtube className="w-8 h-8 text-red-500" /> : <Newspaper className="w-8 h-8 text-indigo-500" />}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center h-[500px] flex flex-col items-center justify-center">
+              <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl transform rotate-3 transition-transform hover:rotate-6 ${dataSource === 'youtube' ? 'bg-gradient-to-br from-red-500 to-red-600' : 'bg-gradient-to-br from-indigo-500 to-indigo-600'}`}>
+                {dataSource === 'youtube' ? <Youtube className="w-10 h-10 text-white" /> : <Newspaper className="w-10 h-10 text-white" />}
               </div>
-              <h3 className="text-lg font-medium text-gray-900">Ready to Analyze</h3>
-              <p className="text-gray-500 mt-2 max-w-sm mx-auto">
-                Configure your parameters on the left and click "Run Analysis" to fetch real-time intelligence.
+              <h3 className="text-2xl font-bold text-gray-900 tracking-tight">Ready to Analyze</h3>
+              <p className="text-gray-500 mt-3 max-w-sm mx-auto text-sm leading-relaxed">
+                Configure your search parameters on the left panel to initialize the intelligence gathering bot.
               </p>
             </div>
           )}
           
           {loading && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center h-full flex flex-col items-center justify-center min-h-[400px]">
-                <Loader2 className={`w-10 h-10 animate-spin mb-4 ${dataSource === 'youtube' ? 'text-red-600' : 'text-indigo-600'}`} />
-                <h3 className="text-lg font-medium text-gray-900">Analyzing Sources</h3>
-                <p className="text-gray-500 mt-2">Retrieving data from {dataSource === 'youtube' ? 'YouTube' : 'Google News'}...</p>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center h-[500px] flex flex-col items-center justify-center">
+                <div className="relative mb-6">
+                    <div className={`w-16 h-16 rounded-full border-4 border-t-transparent animate-spin ${dataSource === 'youtube' ? 'border-red-500' : 'border-indigo-500'}`}></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        {dataSource === 'youtube' ? <Youtube className="w-6 h-6 text-red-500" /> : <Newspaper className="w-6 h-6 text-indigo-500" />}
+                    </div>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Gathering Intelligence</h3>
+                <p className="text-gray-500 mt-2 text-sm">Scanning {dataSource === 'youtube' ? 'YouTube Data API' : 'Global News Networks'}...</p>
             </div>
           )}
 
           {executedSearch && hasResults && !loading && (
             <>
               {/* Stats Bar */}
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-10 backdrop-blur-sm bg-white/95">
-                <div className="flex flex-col gap-0.5">
-                    <div className="flex items-center gap-2 text-sm text-gray-700 font-medium">
-                        <Check className="w-4 h-4 text-green-500" />
-                        <span>Found <strong>
-                            {hasNews ? articles.length : (hasVideos ? videos.length : comments.length)}
-                        </strong> items</span>
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-10 backdrop-blur-md bg-white/95">
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 text-sm text-gray-700 font-bold bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200">
+                        <Check className="w-4 h-4 text-green-600" />
+                        <span>{hasNews ? articles.length : (hasVideos ? videos.length : comments.length)} Results</span>
                     </div>
                     {/* Show filters context only for Search modes, not direct link scrape */}
                     {activeSearch && (
-                        <div className="text-xs text-gray-400 flex items-center gap-1.5">
-                            <Globe className="w-3 h-3" />
-                            <span>{getCountryName(activeSearch.country)}</span>
-                            <span className="text-gray-300">|</span>
-                            <span>{getLanguageName(activeSearch.language)}</span>
+                        <div className="hidden sm:flex text-xs text-gray-400 items-center gap-2">
+                            <span className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded border border-gray-100"><Globe className="w-3 h-3" /> {getCountryName(activeSearch.country)}</span>
+                            <span className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded border border-gray-100">{getLanguageName(activeSearch.language)}</span>
                         </div>
                     )}
                 </div>
                 
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={handleExport}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200 shadow-sm"
-                  >
-                    <Download className="w-4 h-4" />
-                    Export CSV
-                  </button>
-                </div>
+                <button
+                  onClick={handleExport}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 rounded-lg transition-colors border border-gray-300 shadow-sm hover:shadow"
+                >
+                  <Download className="w-4 h-4" />
+                  Export Data
+                </button>
               </div>
 
               {/* News Results List */}
@@ -560,31 +578,31 @@ export default function App() {
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                   <div className="divide-y divide-gray-100">
                     {articles.map((article) => (
-                        <div key={article.guid} className={`hover:bg-gray-50 transition-colors group ${settings.compactMode ? 'p-3' : 'p-5'}`}>
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="space-y-1.5">
-                              <div className="flex items-center gap-2 text-xs text-gray-500">
-                                <span className="font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
+                        <div key={article.guid} className={`group hover:bg-indigo-50/30 transition-all duration-200 border-l-4 border-transparent hover:border-indigo-500 ${settings.compactMode ? 'p-4' : 'p-6'}`}>
+                          <div className="flex items-start justify-between gap-5">
+                            <div className="space-y-2 flex-1">
+                              <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+                                <span className="font-bold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100 tracking-wide uppercase text-[10px]">
                                   {article.source}
                                 </span>
-                                <span>•</span>
-                                <span>{new Date(article.pubDate).toLocaleDateString()}</span>
+                                <span className="text-gray-300">•</span>
+                                <span className="flex items-center gap-1"><Clock className="w-3 h-3"/> {new Date(article.pubDate).toLocaleDateString()}</span>
                               </div>
-                              <h3 className="text-base font-semibold text-gray-900 leading-tight group-hover:text-indigo-600 transition-colors">
+                              <h3 className="text-lg font-bold text-gray-900 leading-snug group-hover:text-indigo-700 transition-colors">
                                 <a href={article.link} target="_blank" rel="noopener noreferrer">
                                   {article.title}
                                 </a>
                               </h3>
                               {!settings.compactMode && article.description && (
-                                  <div className="text-sm text-gray-500 line-clamp-2" dangerouslySetInnerHTML={{__html: article.description}} />
+                                  <div className="text-sm text-gray-600 line-clamp-2 leading-relaxed" dangerouslySetInnerHTML={{__html: article.description}} />
                               )}
                             </div>
                             <a 
                               href={article.link}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="flex-shrink-0 p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all"
-                              title="Read Original Article"
+                              className="flex-shrink-0 p-2.5 text-gray-400 hover:text-indigo-600 bg-gray-50 hover:bg-white border border-gray-100 hover:border-indigo-200 rounded-lg transition-all shadow-sm hover:shadow-md"
+                              title="Open Source"
                             >
                               <ExternalLink className="w-5 h-5" />
                             </a>
@@ -598,38 +616,38 @@ export default function App() {
               {/* YouTube Results Grid (Search Mode) */}
               {hasVideos && (
                   <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       {videos.map((video) => (
-                        <div key={video.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-                          <div className="relative aspect-video bg-gray-100">
+                        <div key={video.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col group border-t-4 border-t-transparent hover:border-t-red-500">
+                          <div className="relative aspect-video bg-gray-900 group">
                               <img 
                                   src={video.thumbnailUrl} 
                                   alt={video.title} 
-                                  className="w-full h-full object-cover" 
+                                  className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" 
                                   loading="lazy"
                               />
-                              <div className="absolute inset-0 bg-black/10 hover:bg-black/0 transition-colors" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                               <a 
                                   href={video.link} 
                                   target="_blank" 
                                   rel="noopener noreferrer"
-                                  className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded flex items-center gap-1 hover:bg-red-600 transition-colors"
+                                  className="absolute bottom-3 right-3 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 hover:bg-red-700 transition-colors shadow-lg"
                               >
-                                  <Youtube className="w-3 h-3" /> Watch
+                                  <Youtube className="w-3.5 h-3.5" /> WATCH
                               </a>
                           </div>
-                          <div className="p-4 flex-1 flex flex-col">
-                              <h3 className="font-semibold text-gray-900 line-clamp-2 mb-2 leading-snug">
-                                  <a href={video.link} target="_blank" rel="noopener noreferrer" className="hover:text-red-600 transition-colors">
+                          <div className="p-5 flex-1 flex flex-col">
+                              <div className="text-xs text-gray-500 mb-2 flex items-center gap-2">
+                                  <span className="font-bold text-gray-700">{video.channelTitle}</span>
+                                  <span className="text-gray-300">•</span>
+                                  <span>{new Date(video.publishTime).toLocaleDateString()}</span>
+                              </div>
+                              <h3 className="font-bold text-gray-900 line-clamp-2 mb-3 leading-tight group-hover:text-red-700 transition-colors">
+                                  <a href={video.link} target="_blank" rel="noopener noreferrer">
                                       {video.title}
                                   </a>
                               </h3>
-                              <div className="text-xs text-gray-500 mb-3 flex items-center gap-2">
-                                  <span className="font-medium text-gray-700">{video.channelTitle}</span>
-                                  <span>•</span>
-                                  <span>{new Date(video.publishTime).toLocaleDateString()}</span>
-                              </div>
-                              <p className="text-sm text-gray-600 line-clamp-2 mb-3 flex-1">
+                              <p className="text-sm text-gray-600 line-clamp-2 mb-4 flex-1">
                                   {video.description}
                               </p>
                           </div>
@@ -643,34 +661,39 @@ export default function App() {
               {hasComments && (
                  <div className="space-y-6">
                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                      <div className="p-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-                          <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                              <MessageSquare className="w-4 h-4 text-red-500" /> Top Level Comments
+                      <div className="p-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                          <h3 className="font-bold text-gray-800 flex items-center gap-2 text-sm uppercase tracking-wide">
+                              <MessageSquare className="w-4 h-4 text-red-500" /> Sentiment Data
                           </h3>
                       </div>
                       <div className="divide-y divide-gray-100">
                           {comments.map((comment) => (
-                              <div key={comment.id} className="p-5 hover:bg-gray-50 transition-colors">
-                                  <div className="flex items-start gap-3">
-                                      <img 
-                                          src={comment.authorProfileImageUrl} 
-                                          alt={comment.authorDisplayName}
-                                          className="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0"
-                                      />
-                                      <div className="flex-1 space-y-1">
+                              <div key={comment.id} className="p-6 hover:bg-gray-50 transition-colors">
+                                  <div className="flex items-start gap-4">
+                                      <div className="relative">
+                                        <img 
+                                            src={comment.authorProfileImageUrl} 
+                                            alt={comment.authorDisplayName}
+                                            className="w-10 h-10 rounded-full bg-gray-200 object-cover ring-2 ring-white shadow-sm"
+                                        />
+                                        <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
+                                            <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
+                                        </div>
+                                      </div>
+                                      <div className="flex-1 space-y-2">
                                           <div className="flex items-center justify-between">
-                                              <span className="text-sm font-semibold text-gray-900">{comment.authorDisplayName}</span>
-                                              <span className="text-xs text-gray-500">{new Date(comment.publishedAt).toLocaleDateString()}</span>
+                                              <span className="text-sm font-bold text-gray-900">{comment.authorDisplayName}</span>
+                                              <span className="text-xs font-medium text-gray-400">{new Date(comment.publishedAt).toLocaleDateString()}</span>
                                           </div>
                                           <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{comment.textOriginal}</p>
-                                          <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                                              <div className="flex items-center gap-1" title="Likes">
-                                                  <ThumbsUp className="w-3.5 h-3.5" />
+                                          <div className="flex items-center gap-4 mt-3">
+                                              <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-md" title="Likes">
+                                                  <ThumbsUp className="w-3 h-3" />
                                                   <span>{comment.likeCount}</span>
                                               </div>
                                               {comment.replyCount > 0 && (
-                                                  <div className="flex items-center gap-1" title="Replies">
-                                                      <MessageCircle className="w-3.5 h-3.5" />
+                                                  <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-md" title="Replies">
+                                                      <MessageCircle className="w-3 h-3" />
                                                       <span>{comment.replyCount} replies</span>
                                                   </div>
                                               )}
@@ -686,14 +709,14 @@ export default function App() {
 
               {/* Pagination Load More Button */}
               {nextPageToken && (
-                 <div className="flex justify-center pt-2 pb-6">
+                 <div className="flex justify-center pt-4 pb-12">
                     <button 
                       onClick={handleLoadMore}
                       disabled={loadingMore}
-                      className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-300 text-gray-700 font-medium rounded-full shadow-sm hover:bg-gray-50 hover:text-indigo-600 transition-all disabled:opacity-50"
+                      className="group flex items-center gap-2 px-8 py-3 bg-white border border-gray-300 text-gray-700 font-bold text-sm rounded-full shadow-lg hover:shadow-xl hover:-translate-y-0.5 hover:bg-gray-50 hover:text-indigo-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {loadingMore ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowDownCircle className="w-4 h-4" />}
-                      {loadingMore ? 'Loading Data...' : 'Load More Results'}
+                      {loadingMore ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowDownCircle className="w-4 h-4 group-hover:animate-bounce" />}
+                      {loadingMore ? 'Fetching Next Batch...' : 'Load More Results'}
                     </button>
                  </div>
               )}
