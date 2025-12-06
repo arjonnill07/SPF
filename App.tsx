@@ -4,10 +4,10 @@ import { LoginForm } from './components/LoginForm';
 import { Layout } from './components/Layout';
 import { OperatorGuide } from './components/OperatorGuide';
 import { SettingsModal } from './components/SettingsModal';
-import { User, LoginState, SearchParams, COUNTRIES, LANGUAGES, NewsArticle, VideoItem, AppSettings, DataSource, YoutubeMode, CommentItem } from './types';
+import { User, LoginState, SearchParams, COUNTRIES, LANGUAGES, NewsArticle, VideoItem, AppSettings, DataSource, YoutubeMode, CommentItem, SearchHistoryItem } from './types';
 import { fetchNews, exportToCSV } from './services/newsService';
 import { fetchVideos, fetchVideoComments, exportVideosToCSV, exportCommentsToCSV } from './services/youtubeService';
-import { Search, Download, RefreshCw, Calendar, Globe, AlertCircle, ExternalLink, Check, Loader2, MapPin, Youtube, Newspaper, Key, MessageSquare, Video, ThumbsUp, MessageCircle } from 'lucide-react';
+import { Search, Download, RefreshCw, Calendar, Globe, AlertCircle, ExternalLink, Check, Loader2, MapPin, Youtube, Newspaper, Key, MessageSquare, Video, ThumbsUp, MessageCircle, History, Clock, ArrowDownCircle } from 'lucide-react';
 
 export default function App() {
   const [authStatus, setAuthStatus] = useState<LoginState>(LoginState.LOGGED_OUT);
@@ -42,15 +42,65 @@ export default function App() {
 
   // Metadata for the currently displayed results
   const [activeSearch, setActiveSearch] = useState<SearchParams | null>(null);
+  const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
 
   // Results State
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [comments, setComments] = useState<CommentItem[]>([]);
   
+  // Pagination State
+  const [nextPageToken, setNextPageToken] = useState<string | undefined>(undefined);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [executedSearch, setExecutedSearch] = useState(false);
+
+  // Load history on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('spf_search_history');
+    if (saved) {
+      try {
+        setSearchHistory(JSON.parse(saved));
+      } catch (e) { console.error("Failed to load history"); }
+    }
+  }, []);
+
+  const saveToHistory = (params: SearchParams, ds: DataSource, ytMode?: YoutubeMode, vidUrl?: string) => {
+    const newItem: SearchHistoryItem = {
+      ...params,
+      id: Date.now().toString(),
+      timestamp: Date.now(),
+      dataSource: ds,
+      youtubeMode: ytMode,
+      targetVideoUrl: vidUrl
+    };
+
+    const newHistory = [newItem, ...searchHistory.filter(h => 
+      // Simple deduplication based on query and source
+      !(h.query === params.query && h.dataSource === ds && h.youtubeMode === ytMode && h.targetVideoUrl === vidUrl)
+    )].slice(0, 10); // Keep last 10
+
+    setSearchHistory(newHistory);
+    localStorage.setItem('spf_search_history', JSON.stringify(newHistory));
+  };
+
+  const restoreHistory = (item: SearchHistoryItem) => {
+    setDataSource(item.dataSource);
+    if (item.youtubeMode) setYoutubeMode(item.youtubeMode);
+    
+    setQuery(item.query);
+    setStartDate(item.startDate);
+    setEndDate(item.endDate);
+    setLanguage(item.language);
+    setCountry(item.country);
+    if (item.targetVideoUrl) setTargetVideoUrl(item.targetVideoUrl);
+    
+    // Auto trigger search (optional, but convenient)
+    // We won't auto-trigger to let user review params, but we scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Update local state if defaults change in settings
   useEffect(() => {
@@ -111,6 +161,7 @@ export default function App() {
     setArticles([]); 
     setVideos([]);
     setComments([]);
+    setNextPageToken(undefined);
     
     const searchParams = {
         query: query.trim(),
@@ -127,6 +178,7 @@ export default function App() {
         setArticles(results);
         if (results.length === 0) setError("No news articles found. Try broadening your criteria.");
         setActiveSearch(searchParams);
+        saveToHistory(searchParams, 'news');
       } 
       else if (dataSource === 'youtube') {
         if (!youtubeApiKey.trim()) {
@@ -135,17 +187,21 @@ export default function App() {
 
         if (youtubeMode === 'search') {
             if (!searchParams.query) throw new Error("Please enter a search keyword.");
-            const results = await fetchVideos(searchParams, youtubeApiKey);
-            setVideos(results);
-            if (results.length === 0) setError("No videos found.");
+            const { items, nextPageToken: token } = await fetchVideos(searchParams, youtubeApiKey);
+            setVideos(items);
+            setNextPageToken(token);
+            if (items.length === 0) setError("No videos found.");
             setActiveSearch(searchParams);
+            saveToHistory(searchParams, 'youtube', 'search');
         } else {
             // Comment Scraping Mode
             if (!targetVideoUrl.trim()) throw new Error("Please enter a valid YouTube Video URL.");
-            const results = await fetchVideoComments(targetVideoUrl, youtubeApiKey);
-            setComments(results);
-            if (results.length === 0) setError("No comments found or comments are disabled.");
-            setActiveSearch(null); // Metadata not relevant for direct link scrape
+            const { items, nextPageToken: token } = await fetchVideoComments(targetVideoUrl, youtubeApiKey);
+            setComments(items);
+            setNextPageToken(token);
+            if (items.length === 0) setError("No comments found or comments are disabled.");
+            setActiveSearch(null); 
+            saveToHistory(searchParams, 'youtube', 'comments', targetVideoUrl);
         }
       }
       
@@ -156,6 +212,28 @@ export default function App() {
       setActiveSearch(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLoadMore = async () => {
+    if (!nextPageToken || !youtubeApiKey) return;
+    
+    setLoadingMore(true);
+    try {
+      if (dataSource === 'youtube' && youtubeMode === 'search' && activeSearch) {
+         const { items, nextPageToken: token } = await fetchVideos(activeSearch, youtubeApiKey, nextPageToken);
+         setVideos(prev => [...prev, ...items]);
+         setNextPageToken(token);
+      } else if (dataSource === 'youtube' && youtubeMode === 'comments' && targetVideoUrl) {
+         const { items, nextPageToken: token } = await fetchVideoComments(targetVideoUrl, youtubeApiKey, nextPageToken);
+         setComments(prev => [...prev, ...items]);
+         setNextPageToken(token);
+      }
+    } catch (err: any) {
+      console.error("Failed to load more items", err);
+      // Optional: show toast error
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -376,6 +454,39 @@ export default function App() {
             </form>
           </div>
 
+          {/* Search History Panel */}
+          {searchHistory.length > 0 && (
+             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+               <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                 <History className="w-4 h-4 text-gray-400" /> Recent Operations
+               </h3>
+               <div className="space-y-2">
+                 {searchHistory.map(item => (
+                   <button 
+                    key={item.id}
+                    onClick={() => restoreHistory(item)}
+                    className="w-full text-left p-2 rounded hover:bg-gray-50 text-xs border border-transparent hover:border-gray-100 transition-all group"
+                   >
+                     <div className="flex items-center gap-2 mb-1">
+                        {item.dataSource === 'news' ? (
+                          <Newspaper className="w-3 h-3 text-indigo-500" />
+                        ) : (
+                          <Youtube className="w-3 h-3 text-red-500" />
+                        )}
+                        <span className="font-medium text-gray-700 truncate flex-1">
+                          {item.youtubeMode === 'comments' ? 'Comments Extract' : item.query}
+                        </span>
+                        <Clock className="w-3 h-3 text-gray-300 group-hover:text-gray-400" />
+                     </div>
+                     <div className="text-gray-400 pl-5 truncate">
+                        {new Date(item.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • {getCountryName(item.country)}
+                     </div>
+                   </button>
+                 ))}
+               </div>
+             </div>
+          )}
+
           {dataSource === 'news' && <OperatorGuide />}
         </div>
 
@@ -486,89 +597,106 @@ export default function App() {
 
               {/* YouTube Results Grid (Search Mode) */}
               {hasVideos && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {videos.map((video) => (
-                      <div key={video.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-                         <div className="relative aspect-video bg-gray-100">
-                            <img 
-                                src={video.thumbnailUrl} 
-                                alt={video.title} 
-                                className="w-full h-full object-cover" 
-                                loading="lazy"
-                            />
-                            <div className="absolute inset-0 bg-black/10 hover:bg-black/0 transition-colors" />
-                            <a 
-                                href={video.link} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded flex items-center gap-1 hover:bg-red-600 transition-colors"
-                            >
-                                <Youtube className="w-3 h-3" /> Watch
-                            </a>
-                         </div>
-                         <div className="p-4 flex-1 flex flex-col">
-                            <h3 className="font-semibold text-gray-900 line-clamp-2 mb-2 leading-snug">
-                                <a href={video.link} target="_blank" rel="noopener noreferrer" className="hover:text-red-600 transition-colors">
-                                    {video.title}
-                                </a>
-                            </h3>
-                            <div className="text-xs text-gray-500 mb-3 flex items-center gap-2">
-                                <span className="font-medium text-gray-700">{video.channelTitle}</span>
-                                <span>•</span>
-                                <span>{new Date(video.publishTime).toLocaleDateString()}</span>
-                            </div>
-                            <p className="text-sm text-gray-600 line-clamp-2 mb-3 flex-1">
-                                {video.description}
-                            </p>
-                         </div>
-                      </div>
-                    ))}
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {videos.map((video) => (
+                        <div key={video.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+                          <div className="relative aspect-video bg-gray-100">
+                              <img 
+                                  src={video.thumbnailUrl} 
+                                  alt={video.title} 
+                                  className="w-full h-full object-cover" 
+                                  loading="lazy"
+                              />
+                              <div className="absolute inset-0 bg-black/10 hover:bg-black/0 transition-colors" />
+                              <a 
+                                  href={video.link} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded flex items-center gap-1 hover:bg-red-600 transition-colors"
+                              >
+                                  <Youtube className="w-3 h-3" /> Watch
+                              </a>
+                          </div>
+                          <div className="p-4 flex-1 flex flex-col">
+                              <h3 className="font-semibold text-gray-900 line-clamp-2 mb-2 leading-snug">
+                                  <a href={video.link} target="_blank" rel="noopener noreferrer" className="hover:text-red-600 transition-colors">
+                                      {video.title}
+                                  </a>
+                              </h3>
+                              <div className="text-xs text-gray-500 mb-3 flex items-center gap-2">
+                                  <span className="font-medium text-gray-700">{video.channelTitle}</span>
+                                  <span>•</span>
+                                  <span>{new Date(video.publishTime).toLocaleDateString()}</span>
+                              </div>
+                              <p className="text-sm text-gray-600 line-clamp-2 mb-3 flex-1">
+                                  {video.description}
+                              </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
               )}
 
               {/* YouTube Comments List (Comment Mode) */}
               {hasComments && (
-                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <div className="p-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-                        <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                            <MessageSquare className="w-4 h-4 text-red-500" /> Top Level Comments
-                        </h3>
-                    </div>
-                    <div className="divide-y divide-gray-100">
-                        {comments.map((comment) => (
-                            <div key={comment.id} className="p-5 hover:bg-gray-50 transition-colors">
-                                <div className="flex items-start gap-3">
-                                    <img 
-                                        src={comment.authorProfileImageUrl} 
-                                        alt={comment.authorDisplayName}
-                                        className="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0"
-                                    />
-                                    <div className="flex-1 space-y-1">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-semibold text-gray-900">{comment.authorDisplayName}</span>
-                                            <span className="text-xs text-gray-500">{new Date(comment.publishedAt).toLocaleDateString()}</span>
-                                        </div>
-                                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{comment.textOriginal}</p>
-                                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                                            <div className="flex items-center gap-1" title="Likes">
-                                                <ThumbsUp className="w-3.5 h-3.5" />
-                                                <span>{comment.likeCount}</span>
-                                            </div>
-                                            {comment.replyCount > 0 && (
-                                                <div className="flex items-center gap-1" title="Replies">
-                                                    <MessageCircle className="w-3.5 h-3.5" />
-                                                    <span>{comment.replyCount} replies</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                 <div className="space-y-6">
+                   <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                      <div className="p-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+                          <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                              <MessageSquare className="w-4 h-4 text-red-500" /> Top Level Comments
+                          </h3>
+                      </div>
+                      <div className="divide-y divide-gray-100">
+                          {comments.map((comment) => (
+                              <div key={comment.id} className="p-5 hover:bg-gray-50 transition-colors">
+                                  <div className="flex items-start gap-3">
+                                      <img 
+                                          src={comment.authorProfileImageUrl} 
+                                          alt={comment.authorDisplayName}
+                                          className="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0"
+                                      />
+                                      <div className="flex-1 space-y-1">
+                                          <div className="flex items-center justify-between">
+                                              <span className="text-sm font-semibold text-gray-900">{comment.authorDisplayName}</span>
+                                              <span className="text-xs text-gray-500">{new Date(comment.publishedAt).toLocaleDateString()}</span>
+                                          </div>
+                                          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{comment.textOriginal}</p>
+                                          <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                                              <div className="flex items-center gap-1" title="Likes">
+                                                  <ThumbsUp className="w-3.5 h-3.5" />
+                                                  <span>{comment.likeCount}</span>
+                                              </div>
+                                              {comment.replyCount > 0 && (
+                                                  <div className="flex items-center gap-1" title="Replies">
+                                                      <MessageCircle className="w-3.5 h-3.5" />
+                                                      <span>{comment.replyCount} replies</span>
+                                                  </div>
+                                              )}
+                                          </div>
+                                      </div>
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                   </div>
                  </div>
               )}
 
+              {/* Pagination Load More Button */}
+              {nextPageToken && (
+                 <div className="flex justify-center pt-2 pb-6">
+                    <button 
+                      onClick={handleLoadMore}
+                      disabled={loadingMore}
+                      className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-300 text-gray-700 font-medium rounded-full shadow-sm hover:bg-gray-50 hover:text-indigo-600 transition-all disabled:opacity-50"
+                    >
+                      {loadingMore ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowDownCircle className="w-4 h-4" />}
+                      {loadingMore ? 'Loading Data...' : 'Load More Results'}
+                    </button>
+                 </div>
+              )}
             </>
           )}
         </div>

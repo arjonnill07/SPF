@@ -1,5 +1,5 @@
 
-import { VideoItem, SearchParams, CommentItem } from '../types';
+import { VideoItem, SearchParams, CommentItem, YouTubeResponse } from '../types';
 
 const YOUTUBE_SEARCH_BASE = "https://www.googleapis.com/youtube/v3/search";
 const YOUTUBE_COMMENTS_BASE = "https://www.googleapis.com/youtube/v3/commentThreads";
@@ -10,7 +10,11 @@ export const extractVideoId = (url: string): string | null => {
   return (match && match[2].length === 11) ? match[2] : null;
 };
 
-export const fetchVideos = async (params: SearchParams, apiKey: string): Promise<VideoItem[]> => {
+export const fetchVideos = async (
+  params: SearchParams, 
+  apiKey: string, 
+  pageToken?: string
+): Promise<YouTubeResponse<VideoItem>> => {
   if (!apiKey) {
     throw new Error("YouTube API Key is required for video search.");
   }
@@ -24,7 +28,7 @@ export const fetchVideos = async (params: SearchParams, apiKey: string): Promise
 
   const urlParams = new URLSearchParams({
     part: 'snippet',
-    maxResults: '20',
+    maxResults: '12', // Slightly reduced batch size for smoother pagination
     q: query,
     type: 'video',
     key: apiKey,
@@ -34,6 +38,7 @@ export const fetchVideos = async (params: SearchParams, apiKey: string): Promise
 
   if (publishedAfter) urlParams.append('publishedAfter', publishedAfter);
   if (publishedBefore) urlParams.append('publishedBefore', publishedBefore);
+  if (pageToken) urlParams.append('pageToken', pageToken);
 
   try {
     const response = await fetch(`${YOUTUBE_SEARCH_BASE}?${urlParams.toString()}`);
@@ -45,9 +50,9 @@ export const fetchVideos = async (params: SearchParams, apiKey: string): Promise
 
     const data = await response.json();
     
-    if (!data.items) return [];
+    if (!data.items) return { items: [] };
 
-    return data.items.map((item: any) => ({
+    const items = data.items.map((item: any) => ({
       id: item.id.videoId,
       title: item.snippet.title,
       description: item.snippet.description,
@@ -57,13 +62,22 @@ export const fetchVideos = async (params: SearchParams, apiKey: string): Promise
       link: `https://www.youtube.com/watch?v=${item.id.videoId}`
     }));
 
+    return {
+      items,
+      nextPageToken: data.nextPageToken
+    };
+
   } catch (error) {
     console.error("YouTube Fetch Error:", error);
     throw error;
   }
 };
 
-export const fetchVideoComments = async (url: string, apiKey: string): Promise<CommentItem[]> => {
+export const fetchVideoComments = async (
+  url: string, 
+  apiKey: string,
+  pageToken?: string
+): Promise<YouTubeResponse<CommentItem>> => {
   const videoId = extractVideoId(url);
   
   if (!videoId) {
@@ -77,10 +91,12 @@ export const fetchVideoComments = async (url: string, apiKey: string): Promise<C
   const urlParams = new URLSearchParams({
     part: 'snippet',
     videoId: videoId,
-    maxResults: '100', // Fetch up to 100 top-level comments
+    maxResults: '50',
     key: apiKey,
     textFormat: 'plainText'
   });
+
+  if (pageToken) urlParams.append('pageToken', pageToken);
 
   try {
     const response = await fetch(`${YOUTUBE_COMMENTS_BASE}?${urlParams.toString()}`);
@@ -97,9 +113,9 @@ export const fetchVideoComments = async (url: string, apiKey: string): Promise<C
 
     const data = await response.json();
     
-    if (!data.items) return [];
+    if (!data.items) return { items: [] };
 
-    return data.items.map((item: any) => {
+    const items = data.items.map((item: any) => {
       const snippet = item.snippet.topLevelComment.snippet;
       return {
         id: item.id,
@@ -113,6 +129,11 @@ export const fetchVideoComments = async (url: string, apiKey: string): Promise<C
         videoLink: `https://www.youtube.com/watch?v=${videoId}`
       };
     });
+
+    return {
+      items,
+      nextPageToken: data.nextPageToken
+    };
 
   } catch (error) {
     console.error("YouTube Comments Fetch Error:", error);

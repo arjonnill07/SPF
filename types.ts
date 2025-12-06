@@ -41,6 +41,19 @@ export interface SearchParams {
   country: string;
 }
 
+export interface SearchHistoryItem extends SearchParams {
+  id: string;
+  timestamp: number;
+  dataSource: DataSource;
+  youtubeMode?: YoutubeMode;
+  targetVideoUrl?: string; // For comment mode
+}
+
+export interface YouTubeResponse<T> {
+  items: T[];
+  nextPageToken?: string;
+}
+
 export enum LoginState {
   LOGGED_OUT,
   LOGGED_IN,
